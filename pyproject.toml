@@ -4,9 +4,15 @@ version = "0.1.0"
 description = "The Konan CLI"
 authors = ["Synapse Analytics"]
 license = "MIT"
+packages = [ { include = "konan_cli", from="." }, ]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+click = "^8.1.3"
+konan-sdk = "^1.3.0"
+setuptools = "^63.4.2"
+requests = "^2.28.1"
+PyYAML = "^6.0"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^5.0.4"
@@ -16,3 +22,7 @@ Sphinx = "^5.1.1"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+# command_name = module_for_handler : function_for_handler
+konan = 'konan_cli.main:konan'

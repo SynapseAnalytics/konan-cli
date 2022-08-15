@@ -4,6 +4,7 @@ import sys
 import shutil
 from pathlib import Path
 
+
 class GlobalConfig:
     def __init__(self, *kwargs):
 
@@ -14,7 +15,7 @@ class GlobalConfig:
         self._api_url = "https://api.konana.ai"
         self._auth_url = "https://auth.konan.ai"
 
-        self._version = "v0.1.0" # TODO: read from init file
+        self._version = "v0.1.0"  # TODO: read from init file
 
         self._docker_path = "/var/lib/docker"
 
@@ -40,7 +41,7 @@ class GlobalConfig:
 
     @property
     def is_docker_installed(self):  # read-only attribute
-        return __check_for_docker(self)
+        return self.__check_for_docker()
 
     @property
     def docker_path(self, path):
@@ -54,9 +55,8 @@ class GlobalConfig:
     def python_version(self):
         return self._python_version
 
-
     def save(self):
-         with open(self.config_path, 'w') as f:
+        with open(self.config_path, 'w') as f:
             f.write(json.dumps(self.__dict__))
 
     # first creation of config file
@@ -79,19 +79,19 @@ class GlobalConfig:
 
 
 class LocalConfig:
-    def __init__(self, global_config, project_path, language, override, base_image="python:3.10-slim-stretch"): # python 3.7 default
+    def __init__(self, global_config, project_path, language, override, base_image="python:3.10-slim-stretch"):  # python 3.7 default
         self._global_config = global_config.config_path
         self.language = language
-        self.base_image = base_image # TODOL get local
+        self.base_image = base_image
         self.project_path = project_path if project_path else os.getcwd() + '/konan_deployment/'
 
-        templates_dir = f'{ Path(__file__).parent.absolute().parent}/.templates/{language}' # CAUTION: changing current file's directory depth affects this
+        templates_dir = f'{ Path(__file__).parent.absolute().parent}/.templates/{language}'  # CAUTION: changing current file's directory depth affects this
 
         if not self.exists():
             shutil.copytree(src=templates_dir, dst=self.project_path)
             self.save()
         elif not override:
-            print(f'Files already generated, to override run with the --override flag or remove the konan_deployment directory and re-run command')
+            print("Files already generated, to override run with the --override flag or remove the konan_deployment directory and re-run command")
         else:
             # TODO: implement
             print("TODO: Overriding existing files")
@@ -106,13 +106,7 @@ class LocalConfig:
 
     def save(self):
         with open(self.project_path + 'deployment.config.json', 'w') as f:
-           f.write(json.dumps(self.__dict__))
+            f.write(json.dumps(self.__dict__))
 
     def load(self):
         pass
-
-
-
-
-
-

@@ -1,6 +1,5 @@
 import json
 import click
-import requests
 
 from requests import HTTPError
 
@@ -24,6 +23,7 @@ def konan(ctx, version):
     if version:
         click.echo(global_config.version)
 
+
 @konan.command()
 @click.option('--email', prompt="Email", help="The email you registered with on Konan", required=True, type=click.STRING)
 @click.option('--password', prompt="Password", help="The password of your registered user on Konan", required=True, hide_input=True, type=click.STRING)
@@ -40,7 +40,7 @@ def login(email, password):
             f.write(json.dumps(global_config.__dict__))
 
         click.echo("Logged in successfully.")
-    except requests.HTTPError:
+    except HTTPError:
         click.echo("There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
 
 
@@ -90,7 +90,7 @@ def init(language, project_path, override):
     Generate the template scripts for deploying a model on Konan
     """
     # TODO: implement exists logic
-    local_config = LocalConfig(global_config=global_config, language=language, project_path=project_path, override=override)
+    LocalConfig(global_config=global_config, language=language, project_path=project_path, override=override)
 
 
 @konan.command()
@@ -101,6 +101,7 @@ def test():
     """
     pass
 
+
 @konan.command()
 @click.pass_context
 def build():
@@ -109,6 +110,7 @@ def build():
     """
     pass
 
+
 @konan.command()
 @click.pass_context
 def publish():
@@ -116,6 +118,7 @@ def publish():
     tbd
     """
     pass
+
 
 @konan.command()
 @click.pass_context

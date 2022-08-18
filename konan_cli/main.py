@@ -84,7 +84,7 @@ def set(ctx, docker_path, api_key):
 @konan.command()
 @click.option('--language', help="the language the ML model is using, default is python", type=click.Choice(["python", "R"]), default="python", multiple=False)
 @click.option('--project-path', 'project_path', help="the base path in which konan's template files will be written, default is your current working directory")
-@click.option('--override', help="override existing files", is_flag=True, required=False, prompt="This will override all existing files, proceed?")
+@click.option('--override', help="override existing files", is_flag=True, required=False)  # prompt="This will override all existing files, proceed?"
 def init(language, project_path, override):
     """
     Generate the template scripts for deploying a model on Konan

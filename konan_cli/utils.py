@@ -83,7 +83,7 @@ class LocalConfig:
         self._global_config = global_config.config_path
         self.language = language
         self.base_image = base_image
-        self.project_path = project_path if project_path else os.getcwd() + '/konan_deployment/'
+        self.project_path = project_path if project_path else os.getcwd() + '/konan_model/'
 
         templates_dir = f'{ Path(__file__).parent.absolute().parent}/.templates/{language}'  # CAUTION: changing current file's directory depth affects this
 
@@ -91,7 +91,7 @@ class LocalConfig:
             shutil.copytree(src=templates_dir, dst=self.project_path)
             self.save()
         elif not override:
-            print("Files already generated, to override run with the --override flag or remove the konan_deployment directory and re-run command")
+            print("Files already generated. To override, run the init command with the --override flag or remove the konan_model directory and re-run command")
         else:
             # TODO: implement
             print("TODO: Overriding existing files")
@@ -105,7 +105,7 @@ class LocalConfig:
         return os.path.exists(self.project_path)
 
     def save(self):
-        with open(self.project_path + 'deployment.config.json', 'w') as f:
+        with open(self.project_path + 'model.config.json', 'w') as f:
             f.write(json.dumps(self.__dict__))
 
     def load(self):

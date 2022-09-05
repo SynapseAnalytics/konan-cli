@@ -24,9 +24,11 @@ def prediction_response(BaseModel):
     pass
 
 def load_model():
+    # TODO: REQUIRED
     # load your model and return it
     return model
 
-def predict(prediction_request_schema) -> prediction_response_schema:
+def predict(prediction_request) -> prediction_response:
+    # TODO: REQUIRED
     # write your prediction function, it takes the prediction request as input
     pass

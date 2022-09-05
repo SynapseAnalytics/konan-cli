@@ -1,5 +1,6 @@
 import json
 import click
+import os
 
 from requests import HTTPError
 
@@ -13,6 +14,9 @@ if GlobalConfig.exists():
     global_config = GlobalConfig(GlobalConfig.load())
 else:
     global_config = GlobalConfig()
+
+LOCAL_CONFIG_FILE_NAME = "model.config.json"
+DEFAULT_LOCAL_CFG_PATH = f'{os.getcwd()}/{LOCAL_CONFIG_FILE_NAME}'
 
 
 @click.group(invoke_without_command=True, no_args_is_help=True)
@@ -89,22 +93,47 @@ def init(language, project_path, override):
     """
     Generate the template scripts for deploying a model on Konan
     """
-    # TODO: implement exists logic
-    LocalConfig(global_config=global_config, language=language, project_path=project_path, override=override)
+    cfg_path = f'{project_path if project_path else DEFAULT_LOCAL_CFG_PATH}'
+    cfg_exists = LocalConfig.exists(cfg_path)
+
+    # check current working directory for existing local config file
+    if cfg_exists and not override:
+        click.echo("Files already generated. To override, run the init command with the --override flag or remove the konan_model directory and re-run command")
+    else:
+        # create new config file
+        LocalConfig(global_config=global_config, language=language, project_path=project_path, override=override)
+
+
+@konan.command()
+@click.option('--image-name', 'image_name', help="name of the generated image", required=True)
+@click.option('--config-file', 'config_file', help="path to config file generated from konan init command", default=DEFAULT_LOCAL_CFG_PATH)
+def build(image_name, config_file):
+    """
+    Packages your model as a docker image.
+    """
+    if not global_config.is_docker_installed:
+        click.echo("Oops!! Looks like you still haven't installed docker. Install docker then re-run this command.")
+
+    # run build from config directory or prompt init in directory
+    # optional command point to config, expect config file in same directory of files
+
+    # load local config
+    cfg_path = f'{config_file if config_file else DEFAULT_LOCAL_CFG_PATH}'
+    cfg_exists = LocalConfig.exists(cfg_path)
+
+    if not cfg_exists:
+        click.echo(f"Project files don't exist, did you run the konan init command first? Make sure you're running the command from the same directory containing {LOCAL_CONFIG_FILE_NAME} or provide it with the \
+                    --config-file argument.")
+        return
+
+    local_config = LocalConfig(**LocalConfig.load(cfg_path), new=False)
+    local_config.build_context()
+
 
 
 @konan.command()
 @click.pass_context
 def test():
-    """
-    tbd
-    """
-    pass
-
-
-@konan.command()
-@click.pass_context
-def build():
     """
     tbd
     """

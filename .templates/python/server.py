@@ -8,7 +8,11 @@ from konan_sdk.konan_service.serializers import (
 from pydantic import BaseModel, validator
 from typing import Optional
 
-class MyPredictionRequest(KonanServiceBasePredictionRequest):
+# TODO: alter parent
+from konan_model.predict import prediction_request, prediction_response, predict
+
+
+class MyPredictionRequest(prediction_request):
     """Defines the schema of a prediction request
 
     Follow the convention of <field_name>: <type_hint>
@@ -18,22 +22,9 @@ class MyPredictionRequest(KonanServiceBasePredictionRequest):
     Follow the pydantic convention
     Check https://pydantic-docs.helpmanual.io/usage/validators/ for more info
     """
-    some_feat: str
-    other_feat: int
-    optional_field: Optional[bool] = None  # default value
+    pass
 
-    # TODO: add validators to enforce value ranges
-    @validator("some_feat")
-    def in_values(cls, v):
-        """
-        Validates prediction score is in ranges or limits.
-        """
-        if v not in ["A", "B", "C"]:
-            raise ValueError('Unknown value, must be a value in ["A", "B", "C"]')
-        return v
-
-
-class MyPredictionResponse(KonanServiceBasePredictionResponse):
+class MyPredictionResponse(prediction_response):
     """Defines the schema of a prediction response
 
     Follow the convention of <field_name>: <type_hint>
@@ -43,7 +34,7 @@ class MyPredictionResponse(KonanServiceBasePredictionResponse):
     Follow the pydantic convention
     Check https://pydantic-docs.helpmanual.io/usage/validators/ for more info
     """
-    prediction: bool
+    pass
 
 
 class MyModel(KonanServiceBaseModel):
@@ -70,11 +61,7 @@ class MyModel(KonanServiceBaseModel):
         Returns:
             MyPredictionResponse: this will be the response returned by the API
         """
-        # TODO: [4] Implement your prediction logic
-        # Optionally preprocess the request here
-        prediction = True # Use your logic to make a prediction
-        # Optionally postprocess the prediction here
-        return {"prediction": prediction}
+        pass
 
     def evaluate(self, req: KonanServiceBaseEvaluateRequest) -> KonanServiceBaseEvaluateResponse:
         """Evaluates the model based on passed predictions and their ground truths

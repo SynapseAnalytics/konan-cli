@@ -1,10 +1,10 @@
 import os
+import docker
 import json
 import sys
 import shutil
 from pathlib import Path
 
-import docker
 
 class GlobalConfig:
     def __init__(self, *kwargs):
@@ -38,7 +38,11 @@ class GlobalConfig:
         return self._version
 
     def __check_for_docker(self):
-        # TODO: implement
+        try:
+            client = docker.from_env()
+            client.info()
+        except docker.errors.APIError:
+            return False
         return True
 
     @property
@@ -87,7 +91,7 @@ class LocalConfig:
             self._global_config = global_config.config_path
         self.language = language
         self.base_image = base_image
-        self.config_path =  kwargs.get(project_path, f'{os.getcwd()}/')
+        self.config_path = kwargs.get(project_path, f'{os.getcwd()}/')
         self.project_path = kwargs.get(project_path, f'{self.config_path}/konan_model/')
         self.build_path = kwargs.get("build_path", f'{self.config_path}.konan_build/')
 
@@ -112,11 +116,9 @@ class LocalConfig:
             self.save()
             # TODO: implement error handling
 
-
     @property
     def global_config(self):
         return self._global_config
-
 
     @staticmethod
     def exists(cfg_path):
@@ -149,7 +151,6 @@ class LocalConfig:
 
         # TODO: take base image
 
-
     def build_image(self, image_tag):
         """
         Build docker image
@@ -159,8 +160,5 @@ class LocalConfig:
 
         return image, build_logs
 
-
-
-
-def test_image(self):
-    pass
+    def test_image(self):
+        pass

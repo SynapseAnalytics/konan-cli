@@ -8,8 +8,7 @@ from konan_sdk.konan_service.serializers import (
 from pydantic import BaseModel, validator
 from typing import Optional
 
-# TODO: alter parent
-from konan_model.predict import prediction_request, prediction_response, predict
+from predict import prediction_request, prediction_response, Model
 
 
 class MyPredictionRequest(prediction_request):
@@ -37,7 +36,7 @@ class MyPredictionResponse(prediction_response):
     pass
 
 
-class MyModel(KonanServiceBaseModel):
+class MyModel:
     def __init__(self):
         """Add logic to initialize your actual model here
 
@@ -47,12 +46,10 @@ class MyModel(KonanServiceBaseModel):
         from konan_sdk.konan_service import constants as Konan_Constants
         self.loaded_model = pickle.load(open(f"{Konan_Constants.MODELS_DIR}/model.pickle", 'rb'))
         """
-        super().__init__()
-        print("reading artifacts from /app/artifacts")
-        f = open(f'/app/artifacts/weights.txt', "r")
-        print(f.read())
+        self.user_model = Model('/app/artifacts')
 
-    def predict(self, req: MyPredictionRequest) -> MyPredictionResponse:
+
+    def predict(self, req: prediction_request) -> prediction_response:
         """Makes an intelligent prediction
 
         Args:
@@ -61,7 +58,7 @@ class MyModel(KonanServiceBaseModel):
         Returns:
             MyPredictionResponse: this will be the response returned by the API
         """
-        pass
+        return self.user_model.predict(req)
 
     def evaluate(self, req: KonanServiceBaseEvaluateRequest) -> KonanServiceBaseEvaluateResponse:
         """Evaluates the model based on passed predictions and their ground truths

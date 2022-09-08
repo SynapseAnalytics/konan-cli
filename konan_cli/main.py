@@ -107,7 +107,8 @@ def init(language, project_path, override):
 @konan.command()
 @click.option('--image-name', 'image_name', help="name of the generated image", required=True)
 @click.option('--config-file', 'config_file', help="path to config file generated from konan init command", default=DEFAULT_LOCAL_CFG_PATH)
-def build(image_name, config_file):
+@click.option('--verbose', help="increase the verbosity of messages", is_flag=True, required=False)
+def build(image_name, config_file, verbose):
     """
     Packages your model as a docker image.
     """
@@ -128,31 +129,38 @@ def build(image_name, config_file):
 
     local_config = LocalConfig(**LocalConfig.load(cfg_path), new=False)
     local_config.build_context()
+    image, build_logs = local_config.build_image(image_tag=image_name)
+
+    # TODO: use low-level api to stream logs realtime
+    if verbose:
+            for chunk in build_logs:
+                if 'stream' in chunk:
+                    for line in chunk['stream'].splitlines():
+                        click.echo(line)
 
 
-
-@konan.command()
-@click.pass_context
-def test():
-    """
-    tbd
-    """
-    pass
-
-
-@konan.command()
-@click.pass_context
-def publish():
-    """
-    tbd
-    """
-    pass
+# @konan.command()
+# @click.pass_context
+# def test():
+#     """
+#     tbd
+#     """
+#     pass
 
 
-@konan.command()
-@click.pass_context
-def deploy():
-    """
-    tbd
-    """
-    pass
+# @konan.command()
+# @click.pass_context
+# def publish():
+#     """
+#     tbd
+#     """
+#     pass
+
+
+# @konan.command()
+# @click.pass_context
+# def deploy():
+#     """
+#     tbd
+#     """
+#     pass

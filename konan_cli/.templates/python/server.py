@@ -3,7 +3,7 @@ from konan_sdk.konan_service.models import KonanServiceBaseModel
 from konan_sdk.konan_service.serializers import (
     KonanServiceBasePredictionRequest, KonanServiceBasePredictionResponse,
     KonanServiceBaseEvaluateRequest, KonanServiceBaseEvaluateResponse,
-    )
+)
 
 from pydantic import BaseModel, validator
 from typing import Optional
@@ -22,6 +22,7 @@ class MyPredictionRequest(prediction_request):
     Check https://pydantic-docs.helpmanual.io/usage/validators/ for more info
     """
     pass
+
 
 class MyPredictionResponse(prediction_response):
     """Defines the schema of a prediction response
@@ -48,7 +49,6 @@ class MyModel:
         """
         self.user_model = Model('/app/artifacts')
 
-
     def predict(self, req: prediction_request) -> prediction_response:
         """Makes an intelligent prediction
 
@@ -70,7 +70,7 @@ class MyModel:
             KonanServiceEvaluateResponse: the evaluation(s) of the model based on some metrics
         """
         # TODO: [5] Implement your evaluation logic
-        evaluation = "" # Use your logic to make an evaluation
+        evaluation = ""  # Use your logic to make an evaluation
         return evaluation
 
 

@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class prediction_request(BaseModel):
     """Defines the schema of a prediction request
     Follow the convention of <field_name>: <type_hint>, ex:
@@ -12,6 +13,7 @@ class prediction_request(BaseModel):
     # TODO: REQUIRED
     pass
 
+
 class prediction_response(BaseModel):
     """Defines the schema of a prediction request
     Follow the convention of <field_name>: <type_hint>, ex:
@@ -22,6 +24,7 @@ class prediction_response(BaseModel):
     """
     # TODO: REQUIRED
     pass
+
 
 class Model:
     def __init__(self, artifacts_base_path):
@@ -41,4 +44,5 @@ class Model:
         # Ex:
         # prediction = self.model.predict(prediction_request)
 
-        return prediction
+        # return prediction
+        pass

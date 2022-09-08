@@ -107,13 +107,16 @@ def init(language, project_path, override):
 @konan.command()
 @click.option('--image-name', 'image_name', help="name of the generated image", required=True)
 @click.option('--config-file', 'config_file', help="path to config file generated from konan init command", default=DEFAULT_LOCAL_CFG_PATH)
+@click.option('--dry-run', 'dry_run', help="generate build files only without building the image", is_flag=True, required=False)
 @click.option('--verbose', help="increase the verbosity of messages", is_flag=True, required=False)
-def build(image_name, config_file, verbose):
+def build(image_name, config_file, dry_run, verbose):
     """
     Packages your model as a docker image.
     """
     if not global_config.is_docker_installed:
-        click.echo("Oops!! Looks like you still haven't installed docker. Install docker then re-run this command.")
+        click.echo('Docker not found on path or is not installed. Install docker then re-run this command.  '
+                   'Refer to https://docs.docker.com/engine/installation for how to install '
+                   'Docker on your local machine.')
 
     # run build from config directory or prompt init in directory
     # optional command point to config, expect config file in same directory of files
@@ -127,16 +130,23 @@ def build(image_name, config_file, verbose):
                     --config-file argument.")
         return
 
+    # generate build files
     local_config = LocalConfig(**LocalConfig.load(cfg_path), new=False)
     local_config.build_context()
+
+    # exit if dry run
+    if dry_run:
+        return
+
+    # build image
     image, build_logs = local_config.build_image(image_tag=image_name)
 
     # TODO: use low-level api to stream logs realtime
     if verbose:
-            for chunk in build_logs:
-                if 'stream' in chunk:
-                    for line in chunk['stream'].splitlines():
-                        click.echo(line)
+        for chunk in build_logs:
+            if 'stream' in chunk:
+                for line in chunk['stream'].splitlines():
+                    click.echo(line)
 
 
 # @konan.command()

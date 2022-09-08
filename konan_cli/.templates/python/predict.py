@@ -46,3 +46,11 @@ class Model:
 
         # return prediction
         pass
+
+
+class evaluation_request(BaseModel):
+    pass
+
+
+class evaluation_response(BaseModel):
+    pass

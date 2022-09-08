@@ -86,7 +86,7 @@ class GlobalConfig:
 
 
 class LocalConfig:
-    def __init__(self, language, project_path, global_config=None, override=None, base_image="python:3.10-slim-stretch", new=True, **kwargs):  # python 3.7 default
+    def __init__(self, language, project_path, global_config=None, override=None, base_image="python:3.10-slim-stretch", new=True, **kwargs):
         if global_config:  # TODO: pop from kwargs
             self._global_config = global_config.config_path
         self.language = language
@@ -107,7 +107,7 @@ class LocalConfig:
             os.mkdir(self.project_path)
 
             # copy user-relevant src files
-            files = ["predict.py", "retrain.py", "requirements.txt"]
+            files = ["predict.py", "retrain.py", "requirements.txt"]  # TODO: define dynamically depending on language
             for template_file in files:
                 shutil.copy(src=f'{self.templates_dir}/{template_file}', dst=self.project_path)
 

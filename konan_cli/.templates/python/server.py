@@ -1,14 +1,7 @@
 from konan_sdk.konan_service.services import KonanService
 from konan_sdk.konan_service.models import KonanServiceBaseModel
-from konan_sdk.konan_service.serializers import (
-    KonanServiceBasePredictionRequest, KonanServiceBasePredictionResponse,
-    KonanServiceBaseEvaluateRequest, KonanServiceBaseEvaluateResponse,
-)
 
-from pydantic import BaseModel, validator
-from typing import Optional
-
-from predict import prediction_request, prediction_response, Model
+from predict import prediction_request, prediction_response, Model, evaluation_request, evaluation_response
 
 
 class MyPredictionRequest(prediction_request):
@@ -37,7 +30,7 @@ class MyPredictionResponse(prediction_response):
     pass
 
 
-class MyModel:
+class MyModel(KonanServiceBaseModel):
     def __init__(self):
         """Add logic to initialize your actual model here
 
@@ -60,7 +53,7 @@ class MyModel:
         """
         return self.user_model.predict(req)
 
-    def evaluate(self, req: KonanServiceBaseEvaluateRequest) -> KonanServiceBaseEvaluateResponse:
+    def evaluate(self, req: evaluation_request) -> evaluation_response:
         """Evaluates the model based on passed predictions and their ground truths
 
         Args:

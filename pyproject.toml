@@ -19,6 +19,20 @@ flake8 = "^5.0.4"
 pytest = "^7.1.2"
 Sphinx = "^5.1.1"
 
+[tool.semantic_release]
+branch = "master"
+version_variable = [
+    "konan_cli/__init__.py:__version__",
+    "pyproject.toml:version",
+]
+version_toml = [
+    "pyproject.toml:tool.poetry.version"
+]
+commit_author = "github-actions <actions@github.com>"
+upload_to_repository = true
+upload_to_release = true
+build_command = "pip install poetry && poetry build"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

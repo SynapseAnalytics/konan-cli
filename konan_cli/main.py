@@ -28,17 +28,27 @@ def konan(ctx, version):
 
 
 @konan.command()
-@click.option('--email', prompt="Email", help="The email you registered with on Konan", required=True,
+@click.option('--email', prompt="Email", help="The email you registered with on Konan", required=False,
               type=click.STRING)
-@click.option('--password', prompt="Password", help="The password of your registered user on Konan", required=True,
+@click.option('--password', prompt="Password", help="The password of your registered user on Konan", required=False,
               hide_input=True, type=click.STRING)
-@click.option('--api_key', prompt="Password", help="The api-key of your registered user on Konan", required=False,
+@click.option('--api-key', prompt="Password", help="The api-key of your registered user on Konan", required=False,
               type=click.STRING)
 def login(email, password, api_key):
     """
     Login with your registered user
     """
     try:
+        if not api_key:
+            if email and not password:
+                click.echo("You cannot specify an email without a password")
+                return
+            if password and not email:
+                click.echo("You cannot specify a password without an email")
+                return
+            if not email and not password:
+                click.echo("You must specify either email and password or api-key")
+
         sdk.login(email=email, password=password, api_key=api_key)
         global_config.access_token = sdk.auth.user.access_token
         global_config.refresh_token = sdk.auth.user.refresh_token
@@ -50,7 +60,8 @@ def login(email, password, api_key):
         if api_key:
             global_config.api_key = api_key
     except HTTPError:
-        click.echo("There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
+        click.echo(
+            "There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
 
 
 @konan.group()
@@ -109,7 +120,8 @@ def init(language, project_path, override):
 
     # check current working directory for existing local config file
     if cfg_exists and not override:
-        click.echo("Files already generated. To override, run the init command with the --override flag or remove the konan_model directory and re-run command")
+        click.echo(
+            "Files already generated. To override, run the init command with the --override flag or remove the konan_model directory and re-run command")
     else:
         # create new config file
         LocalConfig(global_config=global_config, language=language, project_path=project_path, override=override)

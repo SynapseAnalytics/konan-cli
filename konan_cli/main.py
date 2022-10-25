@@ -48,6 +48,7 @@ def login(email, password, api_key):
                 return
             if not email and not password:
                 click.echo("You must specify either email and password or api-key")
+                return
 
         sdk.login(email=email, password=password, api_key=api_key)
         global_config.access_token = sdk.auth.user.access_token

@@ -66,7 +66,7 @@ def show(ctx):
     with open(global_config.config_path, 'rb') as f:
         config = json.load(f)
         click.echo(global_config.config_path)
-        click.echo(config)
+        click.echo(json.dumps(config, indent=4))
 
 
 @config.command(no_args_is_help=True)

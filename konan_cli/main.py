@@ -60,7 +60,7 @@ def login(email, password, api_key=None):
         click.echo("Logged in successfully.")
         if api_key:
             global_config.api_key = api_key
-    except HTTPError as e:
+    except HTTPError:
         click.echo(
             "There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
 

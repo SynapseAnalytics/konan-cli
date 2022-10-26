@@ -42,10 +42,10 @@ def login(email, password, api_key=None):
         if not api_key:
             if email and not password:
                 click.echo("You cannot specify an email without a password")
-                return
+                password = click.prompt('Password', hide_input=True)
             if password and not email:
                 click.echo("You cannot specify a password without an email")
-                return
+                email = click.prompt('Email')
             if not email and not password:
                 click.echo("You must specify either --email and --password or --api-key")
                 return

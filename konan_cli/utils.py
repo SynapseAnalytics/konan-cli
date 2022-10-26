@@ -13,7 +13,7 @@ class GlobalConfig:
         self.access_token = None
         self.refresh_token = None
 
-        self._api_url = "https://api.konana.ai"
+        self._api_url = "https://api.konan.ai"
         self._auth_url = "https://auth.konan.ai"
 
         self._version = "v0.1.0"  # TODO: read from init file

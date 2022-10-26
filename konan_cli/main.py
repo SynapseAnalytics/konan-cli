@@ -7,12 +7,12 @@ from requests import HTTPError
 
 from konan_cli.utils import GlobalConfig, LocalConfig
 
-sdk = KonanSDK(verbose=False)
-
 if GlobalConfig.exists():
     global_config = GlobalConfig(GlobalConfig.load())
 else:
     global_config = GlobalConfig()
+
+sdk = KonanSDK(verbose=False, api_url=global_config._api_url, auth_url=global_config._auth_url)
 
 LOCAL_CONFIG_FILE_NAME = "model.config.json"
 DEFAULT_LOCAL_CFG_PATH = f'{os.getcwd()}/{LOCAL_CONFIG_FILE_NAME}'
@@ -28,13 +28,13 @@ def konan(ctx, version):
 
 
 @konan.command()
-@click.option('--email', prompt="Email", help="The email you registered with on Konan", required=False,
+@click.option('--email', help="The email you registered with on Konan", required=False,
               type=click.STRING)
-@click.option('--password', prompt="Password", help="The password of your registered user on Konan", required=False,
+@click.option('--password', help="The password of your registered user on Konan", required=False,
               hide_input=True, type=click.STRING)
-@click.option('--api-key', prompt="Password", help="The api-key of your registered user on Konan", required=False,
+@click.option('--api-key', help="The api-key of your registered user on Konan", required=False,
               type=click.STRING)
-def login(email, password, api_key):
+def login(email, password, api_key=None):
     """
     Login with your registered user
     """
@@ -47,7 +47,7 @@ def login(email, password, api_key):
                 click.echo("You cannot specify a password without an email")
                 return
             if not email and not password:
-                click.echo("You must specify either email and password or api-key")
+                click.echo("You must specify either --email and --password or --api-key")
                 return
 
         sdk.login(email=email, password=password, api_key=api_key)
@@ -60,7 +60,7 @@ def login(email, password, api_key):
         click.echo("Logged in successfully.")
         if api_key:
             global_config.api_key = api_key
-    except HTTPError:
+    except HTTPError as e:
         click.echo(
             "There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
 
@@ -174,6 +174,7 @@ def build(image_name, config_file, dry_run, verbose):
             if 'stream' in chunk:
                 for line in chunk['stream'].splitlines():
                     click.echo(line)
+
 
 # @konan.command()
 # @click.pass_context

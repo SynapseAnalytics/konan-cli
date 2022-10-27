@@ -9,9 +9,9 @@ from pathlib import Path
 class GlobalConfig:
     def __init__(self, *kwargs):
 
-        self.api_key = None
-        self.access_token = None
-        self.refresh_token = None
+        self.api_key = kwargs[0].get('api_key')
+        self.access_token = kwargs[0].get('access_token')
+        self.refresh_token = kwargs[0].get('refresh_token')
 
         self._api_url = "https://api.konana.ai"
         self._auth_url = "https://auth.konan.ai"

@@ -47,15 +47,13 @@ def login(email, password, api_key=None):
                 click.echo("You cannot specify a password without an email")
                 email = click.prompt('Email')
             if not email and not password:
-                click.echo("You must specify either --email and --password or --api-key")
-                return
+                email = click.prompt('Email')
+                password = click.prompt('Password', hide_input=True)
 
         sdk.login(email=email, password=password, api_key=api_key)
         global_config.access_token = sdk.auth.user.access_token
         global_config.refresh_token = sdk.auth.user.refresh_token
-        # TODO: refactor
-        with open(global_config.config_path, 'w') as f:
-            f.write(json.dumps(global_config.__dict__))
+        global_config.save()
 
         click.echo("Logged in successfully.")
         if api_key:
@@ -174,7 +172,6 @@ def build(image_name, config_file, dry_run, verbose):
             if 'stream' in chunk:
                 for line in chunk['stream'].splitlines():
                     click.echo(line)
-
 
 # @konan.command()
 # @click.pass_context

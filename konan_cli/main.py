@@ -2,6 +2,7 @@ import json
 import os
 
 import click
+import jwt
 from konan_sdk.sdk import KonanSDK
 from requests import HTTPError
 
@@ -12,7 +13,7 @@ if GlobalConfig.exists():
 else:
     global_config = GlobalConfig()
 
-sdk = KonanSDK(verbose=False, api_url=global_config._api_url, auth_url=global_config._auth_url)
+sdk = KonanSDK(verbose=False, api_url=global_config.API_URL, auth_url=global_config.AUTH_URL)
 
 LOCAL_CONFIG_FILE_NAME = "model.config.json"
 DEFAULT_LOCAL_CFG_PATH = f'{os.getcwd()}/{LOCAL_CONFIG_FILE_NAME}'
@@ -56,11 +57,17 @@ def login(email, password, api_key=None):
         sdk.login(email=email, password=password, api_key=api_key)
         global_config.access_token = sdk.auth.user.access_token
         global_config.refresh_token = sdk.auth.user.refresh_token
-        global_config.save()
 
         click.echo("Logged in successfully.")
         if api_key:
             global_config.api_key = api_key
+
+        # save organization uuid
+        decoded_jwt = jwt.decode(global_config.access_token, options={"verify_signature": False})
+        organization_id = decoded_jwt['organization_id']
+        global_config.organization_id = organization_id
+        global_config.save()
+
     except HTTPError:
         click.echo(
             "There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")

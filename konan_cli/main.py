@@ -47,8 +47,11 @@ def login(email, password, api_key=None):
                 click.echo("You cannot specify a password without an email")
                 email = click.prompt('Email')
             if not email and not password:
-                email = click.prompt('Email')
-                password = click.prompt('Password', hide_input=True)
+                if click.confirm('Do you want to login using api-key?', default=True):
+                    api_key = click.prompt('Api Key')
+                else:
+                    email = click.prompt('Email')
+                    password = click.prompt('Password', hide_input=True)
 
         sdk.login(email=email, password=password, api_key=api_key)
         global_config.access_token = sdk.auth.user.access_token

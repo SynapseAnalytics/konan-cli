@@ -1,9 +1,17 @@
 import os
+import time
+
+import click
 import docker
 import json
 import sys
 import shutil
 from pathlib import Path
+
+import requests
+from starlette.status import HTTP_200_OK
+
+from konan_cli.constants import DEFAULT_LOCAL_CFG_PATH
 
 
 class GlobalConfig:
@@ -63,7 +71,7 @@ class GlobalConfig:
 
     def save(self):
         with open(self.config_path, 'w') as f:
-            f.write(json.dumps(self.__dict__))
+            f.write(json.dumps(self.__dict__, indent=4))
 
     # first creation of config file
     def create_config_file(self):
@@ -86,7 +94,19 @@ class GlobalConfig:
 
 
 class LocalConfig:
-    def __init__(self, language, project_path, global_config=None, override=None, base_image="python:3.10-slim-stretch", new=True, **kwargs):
+    # TODO: consider converting this class into a singleton so it doesn't need to be reinitialized every time
+    #  in addition to being able to persist the local config file and directly fetch it in any command without prompting
+    #  the user for the path
+    def __init__(
+        self,
+        language,
+        project_path,
+        global_config=None,
+        override=None,
+        base_image="python:3.10-slim-stretch",
+        new=True,
+        **kwargs
+    ):
         if global_config:  # TODO: pop from kwargs
             self._global_config = global_config.config_path
         self.language = language
@@ -126,7 +146,7 @@ class LocalConfig:
 
     def save(self):
         with open(self.config_path + 'model.config.json', 'w') as f:
-            f.write(json.dumps(self.__dict__))
+            f.write(json.dumps(self.__dict__, indent=4))
 
     # TODO: refactor out
     @staticmethod
@@ -156,9 +176,70 @@ class LocalConfig:
         Build docker image
         """
         client = docker.from_env()
-        image, build_logs = client.images.build(path=self.build_path, tag=image_tag)
+        image, build_logs = client.images.build(path=self.build_path, tag=image_tag, nocache=True)
 
         return image, build_logs
 
-    def test_image(self):
-        pass
+    @staticmethod
+    def stop_and_remove_container(container):
+        container.stop()
+        container.remove()
+
+    @staticmethod
+    def test_image(image_tag, prediction_body):
+        # TODO: save image tag generated in build command to local config and use it automatically here
+        client = docker.from_env()
+        client.containers.run(image_tag, ["python3", "--version"])
+        click.echo("Container run successfully.")
+        container = client.containers.run(image_tag, detach=True, ports={8000: 8000})
+        time.sleep(1)
+
+        try:
+            # ping container
+            requests.get("http://0.0.0.0:8000/")
+            click.echo("Pinged container successfully.")
+
+            # ping healthz endpoint
+            response = requests.get("http://0.0.0.0:8000/healthz")
+            if response.status_code == HTTP_200_OK:
+                click.echo("'/healthz' endpoint tested successfully.")
+            else:
+                click.echo(f"Testing '/healthz' unsuccessful. Endpoint returned {response.status_code} status code.")
+                return False, container
+
+            # request predict endpoint
+            response = requests.post("http://0.0.0.0:8000/predict", data=prediction_body)
+            if response.status_code == HTTP_200_OK:
+                click.echo("'/predict' endpoint tested successfully.")
+            else:
+                click.echo(f"Testing '/predict' unsuccessful. Endpoint returned {response.status_code} status code.")
+                return False, container
+
+            # assert response is a valid json
+            try:
+                response.json()
+            except requests.JSONDecodeError:
+                click.echo("WARNING: Returned output by '/predict' endpoint is not a valid json!")
+
+            # request docs endpoint
+            response = requests.get("http://0.0.0.0:8000/docs")
+            if response.status_code == HTTP_200_OK:
+                click.echo("'/docs' endpoint tested successfully.")
+            else:
+                click.echo(
+                    f"Testing '/docs' unsuccessful. Endpoint returned {response.status_code} status code.")
+                return False, container
+
+        except Exception as e:
+            click.echo("The following exception occurred while trying to contact the model container:")
+            click.echo(e)
+
+        return True, container
+
+    @staticmethod
+    def get_local_config(config_file_path):
+        cfg_path = f'{config_file_path if config_file_path else DEFAULT_LOCAL_CFG_PATH}'
+        cfg_exists = LocalConfig.exists(cfg_path)
+        if cfg_exists:
+            return LocalConfig(**LocalConfig.load(cfg_path), new=False)
+        return None

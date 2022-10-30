@@ -1,11 +1,11 @@
 import json
 import click
-import os
 
 from requests import HTTPError
 
 from konan_sdk.sdk import KonanSDK
 from konan_cli.utils import GlobalConfig, LocalConfig
+from konan_cli.constants import DEFAULT_LOCAL_CFG_PATH, LOCAL_CONFIG_FILE_NAME
 
 
 sdk = KonanSDK(verbose=False)
@@ -14,9 +14,6 @@ if GlobalConfig.exists():
     global_config = GlobalConfig(GlobalConfig.load())
 else:
     global_config = GlobalConfig()
-
-LOCAL_CONFIG_FILE_NAME = "model.config.json"
-DEFAULT_LOCAL_CFG_PATH = f'{os.getcwd()}/{LOCAL_CONFIG_FILE_NAME}'
 
 
 @click.group(invoke_without_command=True, no_args_is_help=True)
@@ -105,7 +102,7 @@ def init(language, project_path, override):
 
 
 @konan.command()
-@click.option('--image-name', 'image_name', help="name of the generated image", required=True)
+@click.option('--image-name', 'image_name', help="name of the image to generate", required=True)
 @click.option('--config-file', 'config_file', help="path to config file generated from konan init command", default=DEFAULT_LOCAL_CFG_PATH)
 @click.option('--dry-run', 'dry_run', help="generate build files only without building the image", is_flag=True, required=False)
 @click.option('--verbose', help="increase the verbosity of messages", is_flag=True, required=False)
@@ -122,16 +119,13 @@ def build(image_name, config_file, dry_run, verbose):
     # optional command point to config, expect config file in same directory of files
 
     # load local config
-    cfg_path = f'{config_file if config_file else DEFAULT_LOCAL_CFG_PATH}'
-    cfg_exists = LocalConfig.exists(cfg_path)
-
-    if not cfg_exists:
+    local_config = LocalConfig.get_local_config(config_file)
+    if not local_config:
         click.echo(f"Project files don't exist, did you run the konan init command first? Make sure you're running the command from the same directory containing {LOCAL_CONFIG_FILE_NAME} or provide it with the \
                     --config-file argument.")
         return
 
     # generate build files
-    local_config = LocalConfig(**LocalConfig.load(cfg_path), new=False)
     local_config.build_context()
 
     # exit if dry run
@@ -140,6 +134,7 @@ def build(image_name, config_file, dry_run, verbose):
 
     # build image
     image, build_logs = local_config.build_image(image_tag=image_name)
+    click.echo(f"Image {image_name} built successfully.")
 
     # TODO: use low-level api to stream logs realtime
     if verbose:
@@ -149,13 +144,26 @@ def build(image_name, config_file, dry_run, verbose):
                     click.echo(line)
 
 
-# @konan.command()
-# @click.pass_context
-# def test():
-#     """
-#     tbd
-#     """
-#     pass
+@konan.command()
+@click.option('--image-name', prompt='Image Name', help="name of the image to test", required=True)
+def test(image_name):
+    """
+    Test's user's created image.
+    """
+    # receive request body
+    click.echo("Prediction Body:")
+    prediction_body = click.edit()
+    click.echo(prediction_body)
+
+    test_successful, container = LocalConfig.test_image(image_name, prediction_body)
+    if test_successful:
+        click.echo("Testing completed successfully.")
+    else:
+        click.echo("Please fix and rebuild your model's container and then retest.")
+
+    click.echo("Removing created container..")
+    LocalConfig.stop_and_remove_container(container)
+    click.echo("Container removed.")
 
 
 # @konan.command()
@@ -174,3 +182,6 @@ def build(image_name, config_file, dry_run, verbose):
 #     tbd
 #     """
 #     pass
+
+if __name__ == "__main__":
+    konan()

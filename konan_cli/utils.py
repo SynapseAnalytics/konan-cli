@@ -94,9 +94,6 @@ class GlobalConfig:
 
 
 class LocalConfig:
-    # TODO: consider converting this class into a singleton so it doesn't need to be reinitialized every time
-    #  in addition to being able to persist the local config file and directly fetch it in any command without prompting
-    #  the user for the path
     def __init__(
         self,
         language,
@@ -131,20 +128,20 @@ class LocalConfig:
             for template_file in files:
                 shutil.copy(src=f'{self.templates_dir}/{template_file}', dst=self.project_path)
 
-            # create artifacts directory
+            # create artifacts directory and local config file
             os.mkdir(f'{self.project_path}artifacts')
-            self.save()
+            self.save_config_to_file()
             # TODO: implement error handling
 
     @property
     def global_config(self):
-        return self._global_config
+        return self._global_config if self._global_config else None
 
     @staticmethod
-    def exists(cfg_path):
+    def config_file_exists(cfg_path):
         return os.path.exists(cfg_path)
 
-    def save(self):
+    def save_config_to_file(self):
         with open(self.config_path + 'model.config.json', 'w') as f:
             f.write(json.dumps(self.__dict__, indent=4))
 
@@ -238,8 +235,9 @@ class LocalConfig:
 
     @staticmethod
     def get_local_config(config_file_path):
-        cfg_path = f'{config_file_path if config_file_path else DEFAULT_LOCAL_CFG_PATH}'
-        cfg_exists = LocalConfig.exists(cfg_path)
-        if cfg_exists:
-            return LocalConfig(**LocalConfig.load(cfg_path), new=False)
+        if not config_file_path:
+            config_file_path = DEFAULT_LOCAL_CFG_PATH
+        config_file_exists = LocalConfig.config_file_exists(config_file_path)
+        if config_file_exists:
+            return LocalConfig(**LocalConfig.load(config_file_path), new=False)
         return None

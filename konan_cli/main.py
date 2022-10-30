@@ -91,7 +91,7 @@ def init(language, project_path, override):
     Generate the template scripts for deploying a model on Konan
     """
     cfg_path = f'{project_path if project_path else DEFAULT_LOCAL_CFG_PATH}'
-    cfg_exists = LocalConfig.exists(cfg_path)
+    cfg_exists = LocalConfig.config_file_exists(cfg_path)
 
     # check current working directory for existing local config file
     if cfg_exists and not override:

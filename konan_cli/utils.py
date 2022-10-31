@@ -108,9 +108,10 @@ class LocalConfig:
             self._global_config = global_config.config_path
         self.language = language
         self.base_image = base_image
-        self.config_path = kwargs.get(project_path, f'{os.getcwd()}/')
-        self.project_path = kwargs.get(project_path, f'{self.config_path}/konan_model/')
-        self.build_path = kwargs.get("build_path", f'{self.config_path}.konan_build/')
+        self.config_path = f'{os.getcwd()}/'
+        self.project_path = f'{self.config_path}/konan_model/'
+        self.build_path = f'{self.config_path}.konan_build/'
+        self.latest_built_image = kwargs.get('latest_built_image', None)
 
         # TODO: make read only
         self.templates_dir = f'{ Path(__file__).parent.absolute()}/.templates/{language}'
@@ -177,18 +178,15 @@ class LocalConfig:
 
         return image, build_logs
 
-    @staticmethod
-    def stop_and_remove_container(container):
+    def stop_and_remove_container(self, container):
         container.stop()
         container.remove()
 
-    @staticmethod
-    def test_image(image_tag, prediction_body):
-        # TODO: save image tag generated in build command to local config and use it automatically here
+    def test_image(self, prediction_body):
         client = docker.from_env()
-        client.containers.run(image_tag, ["python3", "--version"])
+        client.containers.run(self.latest_built_image, ["python3", "--version"])
         click.echo("Container run successfully.")
-        container = client.containers.run(image_tag, detach=True, ports={8000: 8000})
+        container = client.containers.run(self.latest_built_image, detach=True, ports={8000: 8000})
         time.sleep(1)
 
         try:
@@ -234,10 +232,8 @@ class LocalConfig:
         return True, container
 
     @staticmethod
-    def get_local_config(config_file_path):
-        if not config_file_path:
-            config_file_path = DEFAULT_LOCAL_CFG_PATH
-        config_file_exists = LocalConfig.config_file_exists(config_file_path)
+    def get_local_config():
+        config_file_exists = LocalConfig.config_file_exists(DEFAULT_LOCAL_CFG_PATH)
         if config_file_exists:
-            return LocalConfig(**LocalConfig.load(config_file_path), new=False)
+            return LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CFG_PATH), new=False)
         return None

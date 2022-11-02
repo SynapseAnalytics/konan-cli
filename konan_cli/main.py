@@ -165,7 +165,7 @@ def build(image_name, dry_run, verbose):
 #     pass
 
 # TODO: use sdk to fetch KCR creds
-@click.option('--image-tag', help="name of the generated image", required=False)
+@click.option('--image', help="name of the generated image", required=False)
 @konan.command()
 def publish(image_tag):
     """
@@ -190,19 +190,22 @@ def publish(image_tag):
         try:
             image = client.images.get(image_tag)
         except ImageNotFound:
-            click.echo("Error getting image. This image is not found by docker")
+            click.echo("Incorrect image provided")
             return
     else:
         if LocalConfig.exists(DEFAULT_LOCAL_CFG_PATH):
             local_config = LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CFG_PATH), new=False)
-            if local_config.latest_built_image and click.confirm("Do you want to use the latest built image?"):
-                image = client.images.get(local_config.latest_built_image)
+            if local_config.latest_built_image:
+                if click.confirm("Do you want to use the latest built image?"):
+                    image = client.images.get(local_config.latest_built_image)
+                else:
+                    try:
+                        image = client.images.get(click.prompt("Image"))
+                    except ImageNotFound:
+                        click.echo("Incorrect image provided")
+                        return
             else:
-                try:
-                    image = client.images.get(click.prompt("Image name"))
-                except ImageNotFound:
-                    click.echo("Error getting image. This image is not found by docker")
-                    return
+                click.echo("Please run 'konan build' first")
         else:
             click.echo(
                 "Error reading local configs, please navigate to project file and make sure you initialized your project using init command")

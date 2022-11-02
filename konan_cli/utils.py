@@ -1,5 +1,3 @@
-import os
-import docker
 import json
 import os
 import shutil
@@ -103,7 +101,7 @@ class LocalConfig:
         self.latest_built_image = kwargs.get('latest_built_image', None)
 
         # TODO: make read only
-        self.templates_dir = f'{ Path(__file__).parent.absolute()}/.templates/{language}'
+        self.templates_dir = f'{Path(__file__).parent.absolute()}/.templates/{language}'
 
         if override:
             # TODO: implement

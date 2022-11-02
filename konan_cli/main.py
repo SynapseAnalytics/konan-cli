@@ -1,5 +1,4 @@
 import json
-import click
 import os
 
 import click
@@ -77,7 +76,8 @@ def login(email, password, api_key=None):
         global_config.save()
 
     except HTTPError:
-        click.echo("There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
+        click.echo(
+            "There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
 
 
 @konan.group()
@@ -102,8 +102,11 @@ def show(ctx):
 
 
 @config.command(no_args_is_help=True)
-@click.option('--docker-path', 'docker_path', help="path to docker installation, default set to /var/lib/docker", type=click.STRING)
-@click.option('--api-key', 'api_key', help="API key for the logged in user, can be obtained from https://auth.konan.ai/api/no/idea", type=click.STRING)
+@click.option('--docker-path', 'docker_path', help="path to docker installation, default set to /var/lib/docker",
+              type=click.STRING)
+@click.option('--api-key', 'api_key',
+              help="API key for the logged in user, can be obtained from https://auth.konan.ai/api/no/idea",
+              type=click.STRING)
 @click.pass_context
 def set(ctx, docker_path, api_key):
     """
@@ -158,7 +161,8 @@ def build(image_name, dry_run, verbose):
     cfg_exists = LocalConfig.exists(DEFAULT_LOCAL_CFG_PATH)
 
     if not cfg_exists:
-        click.echo(f"Project files don't exist, did you run the konan init command first? Make sure you're running the command from the same directory containing {LOCAL_CONFIG_FILE_NAME} or provide it with the \
+        click.echo(
+            f"Project files don't exist, did you run the konan init command first? Make sure you're running the command from the same directory containing {LOCAL_CONFIG_FILE_NAME} or provide it with the \
                     --config-file argument.")
         return
 
@@ -231,9 +235,7 @@ def publish(image_tag):
                     click.echo(
                         "Error fetching token_name and token_password for konan container registry, please try to re-login")
                     return
-    # Get organization uuid
-    decoded_jwt = jwt.decode(global_config.access_token, options={"verify_signature": False})
-    organization_id = decoded_jwt['organization_id']
+
     client = docker.from_env()
     client.login(username=global_config.token_name, password=global_config.token_password,
                  registry=global_config.KCR_REGISTRY)
@@ -258,15 +260,16 @@ def publish(image_tag):
                         return
             else:
                 click.echo("Please run 'konan build' first")
+                return
         else:
             click.echo(
                 "Error reading local configs, please navigate to project file and make sure you initialized your project using init command")
             return
 
     stripped_image_name = image.tags[0].split(':', 1)[0]
-    image.tag(repository=f"{global_config.KCR_REGISTRY}/{organization_id}:{stripped_image_name}")
-    result = client.images.push(f"{global_config.KCR_REGISTRY}/{organization_id}:{stripped_image_name}", stream=True,
-                                decode=True)
+    image.tag(repository=f"{global_config.KCR_REGISTRY}/{global_config.organization_id}:{stripped_image_name}")
+    result = client.images.push(f"{global_config.KCR_REGISTRY}/{global_config.organization_id}:{stripped_image_name}",
+                                stream=True, decode=True)
     for chunk in result:
         if 'progress' in chunk:
             click.echo(chunk['progress'])

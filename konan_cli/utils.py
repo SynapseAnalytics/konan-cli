@@ -6,7 +6,7 @@ from pathlib import Path
 
 import docker
 
-from __init__ import __version__
+from .__init__ import __version__
 
 
 class GlobalConfig:

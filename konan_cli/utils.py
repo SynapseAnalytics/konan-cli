@@ -18,6 +18,8 @@ class GlobalConfig:
         self.access_token = kwargs[0].get('access_token')
         self.refresh_token = kwargs[0].get('refresh_token')
         self.organization_id = kwargs[0].get('organization_id')
+        self.token_name = kwargs[0].get('token_name')
+        self.token_password = kwargs[0].get('token_password')
 
         self._version = "v0.1.0"  # TODO: read from init file
 

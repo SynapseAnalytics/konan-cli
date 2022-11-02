@@ -4,11 +4,7 @@ import shutil
 import sys
 from pathlib import Path
 
-import click
 import docker
-import requests
-
-from konan_cli.main import global_config
 
 
 class GlobalConfig:
@@ -170,35 +166,3 @@ class LocalConfig:
 
     def test_image(self):
         pass
-
-
-def get_kcr_creds():
-    response = requests.get(url=f"{global_config.API_URL}/registry/token/",
-                            headers={'content-type': 'application/json',
-                                     'Authorization': f'Bearer {global_config.access_token}'})
-    if response.ok:
-        r_json = response.json()
-        global_config.token_name = r_json['token_name']
-        global_config.token_password = r_json['token_password']
-        global_config.save()
-    else:
-        # Refresh if access token is expired
-        if response.status_code == 401:
-            refresh_response = requests.get(url=f"{global_config.API_URL}/api/auth/token/refresh/",
-                                            headers={'content-type': 'application/json'})
-            if refresh_response.ok:
-                global_config.access_token = refresh_response.json()['access']
-                global_config.save()
-                # Resend KCR creds request in case of access token is expired
-                response = requests.get(url=f"{global_config.API_URL}/registry/token/",
-                                        headers={'content-type': 'application/json',
-                                                 'Authorization': f'Bearer {global_config.access_token}'})
-                if response.ok:
-                    r_json = response.json()
-                    global_config.token_name = r_json['token_name']
-                    global_config.token_password = r_json['token_password']
-                    global_config.save()
-            else:
-                click.echo(
-                    "Error fetching token_name and token_password for konan container registry, please try to re-login")
-                return

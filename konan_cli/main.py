@@ -4,11 +4,12 @@ import os
 import click
 import docker
 import jwt
+import requests
 from docker.errors import ImageNotFound
 from konan_sdk.sdk import KonanSDK
 from requests import HTTPError
 
-from konan_cli.utils import GlobalConfig, LocalConfig, get_kcr_creds
+from konan_cli.utils import GlobalConfig, LocalConfig
 
 if GlobalConfig.exists():
     global_config = GlobalConfig(GlobalConfig.load())
@@ -165,7 +166,7 @@ def build(image_name, dry_run, verbose):
 #     pass
 
 # TODO: use sdk to fetch KCR creds
-@click.option('--image', help="name of the generated image", required=False)
+@click.option('--image-tag', help="name of the generated image", required=False)
 @konan.command()
 def publish(image_tag):
     """
@@ -176,8 +177,35 @@ def publish(image_tag):
 
     # Getting KCR creds if not found
     if not (global_config.token_name and global_config.token_password):
-        get_kcr_creds()
-
+        response = requests.get(url=f"{global_config.API_URL}/registry/token/",
+                                headers={'content-type': 'application/json',
+                                         'Authorization': f'Bearer {global_config.access_token}'})
+        if response.ok:
+            r_json = response.json()
+            global_config.token_name = r_json['token_name']
+            global_config.token_password = r_json['token_password']
+            global_config.save()
+        else:
+            # Refresh if access token is expired
+            if response.status_code == 401:
+                refresh_response = requests.get(url=f"{global_config.API_URL}/api/auth/token/refresh/",
+                                                headers={'content-type': 'application/json'})
+                if refresh_response.ok:
+                    global_config.access_token = refresh_response.json()['access']
+                    global_config.save()
+                    # Resend KCR creds request in case of access token is expired
+                    response = requests.get(url=f"{global_config.API_URL}/registry/token/",
+                                            headers={'content-type': 'application/json',
+                                                     'Authorization': f'Bearer {global_config.access_token}'})
+                    if response.ok:
+                        r_json = response.json()
+                        global_config.token_name = r_json['token_name']
+                        global_config.token_password = r_json['token_password']
+                        global_config.save()
+                else:
+                    click.echo(
+                        "Error fetching token_name and token_password for konan container registry, please try to re-login")
+                    return
     # Get organization uuid
     decoded_jwt = jwt.decode(global_config.access_token, options={"verify_signature": False})
     organization_id = decoded_jwt['organization_id']
@@ -200,7 +228,7 @@ def publish(image_tag):
                     image = client.images.get(local_config.latest_built_image)
                 else:
                     try:
-                        image = client.images.get(click.prompt("Image"))
+                        image = client.images.get(click.prompt("Image tag"))
                     except ImageNotFound:
                         click.echo("Incorrect image provided")
                         return

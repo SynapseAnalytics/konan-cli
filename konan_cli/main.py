@@ -48,7 +48,8 @@ def login(email, password, api_key=None):
                 click.echo("You cannot specify a password without an email")
                 email = click.prompt('Email')
             if not email and not password:
-                if click.confirm('Do you want to login using api-key?', default=True):
+                if click.confirm('Do you want to login using api-key?',
+                                 default=True):  # TODO: add reference how to get api-key
                     api_key = click.prompt('Api Key')
                 else:
                     email = click.prompt('Email')

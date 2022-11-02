@@ -1,4 +1,5 @@
 import json
+import click
 import os
 
 import click
@@ -32,23 +33,51 @@ def konan(ctx, version):
 
 
 @konan.command()
-@click.option('--email', prompt="Email", help="The email you registered with on Konan", required=True,
+@click.option('--email', help="The email you registered with on Konan", required=False,
               type=click.STRING)
-@click.option('--password', prompt="Password", help="The password of your registered user on Konan", required=True,
+@click.option('--password', help="The password of your registered user on Konan", required=False,
               hide_input=True, type=click.STRING)
-def login(email, password):
+@click.option('--api-key', help="The api-key of your registered user on Konan", required=False,
+              type=click.STRING)
+def login(email, password, api_key=None):
     """
     Login with your registered user
     """
     try:
-        sdk.login(email=email, password=password)
+        if not api_key:
+            if email and not password:
+                click.echo("You cannot specify an email without a password")
+                password = click.prompt('Password', hide_input=True)
+            if password and not email:
+                click.echo("You cannot specify a password without an email")
+                email = click.prompt('Email')
+            if not email and not password:
+                if click.confirm('Do you want to login using api-key?',
+                                 default=True):  # TODO: add reference how to get api-key
+                    api_key = click.prompt('Api Key')
+                else:
+                    email = click.prompt('Email')
+                    password = click.prompt('Password', hide_input=True)
+
+        sdk.login(email=email, password=password, api_key=api_key)
         global_config.access_token = sdk.auth.user.access_token
         global_config.refresh_token = sdk.auth.user.refresh_token
-        global_config.save()
+        # TODO: refactor
+        with open(global_config.config_path, 'w') as f:
+            f.write(json.dumps(global_config.__dict__))
+
         click.echo("Logged in successfully.")
+        if api_key:
+            global_config.api_key = api_key
+
+        # save organization uuid
+        decoded_jwt = jwt.decode(global_config.access_token, options={"verify_signature": False})
+        organization_id = decoded_jwt['organization_id']
+        global_config.organization_id = organization_id
+        global_config.save()
+
     except HTTPError:
-        click.echo(
-            "There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
+        click.echo("There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
 
 
 @konan.group()
@@ -73,11 +102,8 @@ def show(ctx):
 
 
 @config.command(no_args_is_help=True)
-@click.option('--docker-path', 'docker_path', help="path to docker installation, default set to /var/lib/docker",
-              type=click.STRING)
-@click.option('--api-key', 'api_key',
-              help="API key for the logged in user, can be obtained from https://auth.konan.ai/api/no/idea",
-              type=click.STRING)
+@click.option('--docker-path', 'docker_path', help="path to docker installation, default set to /var/lib/docker", type=click.STRING)
+@click.option('--api-key', 'api_key', help="API key for the logged in user, can be obtained from https://auth.konan.ai/api/no/idea", type=click.STRING)
 @click.pass_context
 def set(ctx, docker_path, api_key):
     """
@@ -132,8 +158,7 @@ def build(image_name, dry_run, verbose):
     cfg_exists = LocalConfig.exists(DEFAULT_LOCAL_CFG_PATH)
 
     if not cfg_exists:
-        click.echo(
-            f"Project files don't exist, did you run the konan init command first? Make sure you're running the command from the same directory containing {LOCAL_CONFIG_FILE_NAME} or provide it with the \
+        click.echo(f"Project files don't exist, did you run the konan init command first? Make sure you're running the command from the same directory containing {LOCAL_CONFIG_FILE_NAME} or provide it with the \
                     --config-file argument.")
         return
 
@@ -209,7 +234,6 @@ def publish(image_tag):
     # Get organization uuid
     decoded_jwt = jwt.decode(global_config.access_token, options={"verify_signature": False})
     organization_id = decoded_jwt['organization_id']
-
     client = docker.from_env()
     client.login(username=global_config.token_name, password=global_config.token_password,
                  registry=global_config.KCR_REGISTRY)

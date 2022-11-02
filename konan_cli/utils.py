@@ -1,3 +1,5 @@
+import os
+import docker
 import json
 import os
 import shutil
@@ -13,18 +15,18 @@ class GlobalConfig:
     KCR_REGISTRY = "konan.azurecr.io"
 
     def __init__(self, *kwargs):
+
         self.api_key = kwargs[0].get('api_key')
         self.access_token = kwargs[0].get('access_token')
         self.refresh_token = kwargs[0].get('refresh_token')
+        self.organization_id = kwargs[0].get('organization_id')
 
         self._version = "v0.1.0"  # TODO: read from init file
 
         self._docker_path = "/var/lib/docker"
 
         self._python_version = sys.version
-        self.token_name = kwargs[0].get('token_name')
-        self.token_password = kwargs[0].get('token_password')
-        self.organization_id = kwargs[0].get('organization_id')
+
         if not GlobalConfig.exists():
             self.create_config_file()
 
@@ -101,7 +103,7 @@ class LocalConfig:
         self.latest_built_image = kwargs.get('latest_built_image', None)
 
         # TODO: make read only
-        self.templates_dir = f'{Path(__file__).parent.absolute()}/.templates/{language}'
+        self.templates_dir = f'{ Path(__file__).parent.absolute()}/.templates/{language}'
 
         if override:
             # TODO: implement

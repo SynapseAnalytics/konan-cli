@@ -7,14 +7,15 @@ from pathlib import Path
 
 
 class GlobalConfig:
+    API_URL = "https://api.konan.ai"
+    AUTH_URL = "https://auth.konan.ai"
+
     def __init__(self, *kwargs):
 
-        self.api_key = None
-        self.access_token = None
-        self.refresh_token = None
-
-        self._api_url = "https://api.konana.ai"
-        self._auth_url = "https://auth.konan.ai"
+        self.api_key = kwargs[0].get('api_key')
+        self.access_token = kwargs[0].get('access_token')
+        self.refresh_token = kwargs[0].get('refresh_token')
+        self.organization_id = kwargs[0].get('organization_id')
 
         self._version = "v0.1.0"  # TODO: read from init file
 
@@ -86,7 +87,8 @@ class GlobalConfig:
 
 
 class LocalConfig:
-    def __init__(self, language, project_path, global_config=None, override=None, base_image="python:3.10-slim-stretch", new=True, **kwargs):
+    def __init__(self, language, project_path, global_config=None, override=None, base_image="python:3.10-slim-stretch",
+                 new=True, **kwargs):
         if global_config:  # TODO: pop from kwargs
             self._global_config = global_config.config_path
         self.language = language
@@ -96,7 +98,7 @@ class LocalConfig:
         self.build_path = kwargs.get("build_path", f'{self.config_path}.konan_build/')
 
         # TODO: make read only
-        self.templates_dir = f'{ Path(__file__).parent.absolute()}/.templates/{language}'
+        self.templates_dir = f'{Path(__file__).parent.absolute()}/.templates/{language}'
 
         if override:
             # TODO: implement

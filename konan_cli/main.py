@@ -19,7 +19,8 @@ else:
 sdk = KonanSDK(verbose=False, api_url=global_config.API_URL, auth_url=global_config.AUTH_URL)
 
 LOCAL_CONFIG_FILE_NAME = "model.config.json"
-DEFAULT_LOCAL_CFG_PATH = f'{os.getcwd()}/{LOCAL_CONFIG_FILE_NAME}'
+DEFAULT_LOCAL_CONFIG_PATH = f'{os.getcwd()}/{LOCAL_CONFIG_FILE_NAME}'
+DEFAULT_KONAN_MODEL_PATH = f'{os.getcwd()}/konan_model/'
 
 
 @click.group(invoke_without_command=True, no_args_is_help=True)
@@ -120,20 +121,21 @@ def set(ctx, docker_path, api_key):
 @konan.command()
 @click.option('--language', help="the language the ML model is using, default is python",
               type=click.Choice(["python", "R"]), default="python", multiple=False)
-@click.option('--project-path', 'project_path',
-              help="the base path in which konan's template files will be written, default is your current working directory")
 @click.option('--override', help="override existing files", is_flag=True,
               required=False)  # prompt="This will override all existing files, proceed?"
 def init(language, override):
     """
     Generate the template scripts for deploying a model on Konan
     """
-    cfg_exists = LocalConfig.exists(DEFAULT_LOCAL_CFG_PATH)
+    config_file_exists = LocalConfig.exists(DEFAULT_LOCAL_CONFIG_PATH)
+    konan_model_dir_exits = os.path.isdir(DEFAULT_KONAN_MODEL_PATH)
 
     # check current working directory for existing local config file
-    if cfg_exists and not override:
+    if (config_file_exists or konan_model_dir_exits) and not override:
         click.echo(
-            "Files already generated. To override, run the init command with the --override flag or remove the konan_model directory and re-run command")
+            "Either config file or konan_model directory already generated. To override, run the init command with the " 
+            "--override flag or remove the existing files and re-run command."
+        )
     else:
         # create new config file
         LocalConfig(global_config=global_config, language=language, override=override)
@@ -157,7 +159,7 @@ def build(image_name, dry_run, verbose):
     # optional command point to config, expect config file in same directory of files
 
     # load local config
-    cfg_exists = LocalConfig.exists(DEFAULT_LOCAL_CFG_PATH)
+    cfg_exists = LocalConfig.exists(DEFAULT_LOCAL_CONFIG_PATH)
 
     if not cfg_exists:
         click.echo(
@@ -166,7 +168,7 @@ def build(image_name, dry_run, verbose):
         return
 
     # generate build files
-    local_config = LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CFG_PATH), new=False)
+    local_config = LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CONFIG_PATH), new=False)
     local_config.build_context()
 
     # exit if dry run
@@ -191,6 +193,7 @@ def build(image_name, dry_run, verbose):
 #     tbd
 #     """
 #     pass
+
 
 # TODO: use sdk to fetch KCR creds
 @click.option('--image-tag', help="name of the generated image", required=False)
@@ -245,8 +248,8 @@ def publish(image_tag):
                 "Incorrect image provided. Make sure you provide the same image name you used with `konan build` command.")
             return
     else:
-        if LocalConfig.exists(DEFAULT_LOCAL_CFG_PATH):
-            local_config = LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CFG_PATH), new=False)
+        if LocalConfig.exists(DEFAULT_LOCAL_CONFIG_PATH):
+            local_config = LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CONFIG_PATH), new=False)
             if local_config.latest_built_image:
                 if click.confirm(f"Do you want to use the latest built image ({local_config.latest_built_image})?"):
                     image = client.images.get(local_config.latest_built_image)

@@ -2,7 +2,10 @@ import json
 import os
 
 import click
+import docker
 import jwt
+import requests
+from docker.errors import ImageNotFound
 from konan_sdk.sdk import KonanSDK
 from requests import HTTPError
 
@@ -122,12 +125,11 @@ def set(ctx, docker_path, api_key):
               help="the base path in which konan's template files will be written, default is your current working directory")
 @click.option('--override', help="override existing files", is_flag=True,
               required=False)  # prompt="This will override all existing files, proceed?"
-def init(language, project_path, override):
+def init(language, override):
     """
     Generate the template scripts for deploying a model on Konan
     """
-    config_file_path = f'{project_path}/{LOCAL_CONFIG_FILE_NAME}' if project_path else DEFAULT_LOCAL_CONFIG_PATH
-    config_file_exists = LocalConfig.exists(config_file_path)
+    config_file_exists = LocalConfig.exists(DEFAULT_LOCAL_CONFIG_PATH)
     konan_model_dir_exits = os.path.isdir(DEFAULT_KONAN_MODEL_PATH)
 
     # check current working directory for existing local config file
@@ -138,17 +140,15 @@ def init(language, project_path, override):
         )
     else:
         # create new config file
-        LocalConfig(global_config=global_config, language=language, project_path=project_path, override=override)
+        LocalConfig(global_config=global_config, language=language, override=override)
 
 
 @konan.command()
 @click.option('--image-name', 'image_name', help="name of the generated image", required=True)
-@click.option('--config-file', 'config_file', help="path to config file generated from konan init command",
-              default=DEFAULT_LOCAL_CONFIG_PATH)
 @click.option('--dry-run', 'dry_run', help="generate build files only without building the image", is_flag=True,
               required=False)
 @click.option('--verbose', help="increase the verbosity of messages", is_flag=True, required=False)
-def build(image_name, config_file, dry_run, verbose):
+def build(image_name, dry_run, verbose):
     """
     Packages your model as a docker image.
     """
@@ -161,8 +161,7 @@ def build(image_name, config_file, dry_run, verbose):
     # optional command point to config, expect config file in same directory of files
 
     # load local config
-    cfg_path = f'{config_file if config_file else DEFAULT_LOCAL_CONFIG_PATH}'
-    cfg_exists = LocalConfig.exists(cfg_path)
+    cfg_exists = LocalConfig.exists(DEFAULT_LOCAL_CONFIG_PATH)
 
     if not cfg_exists:
         click.echo(
@@ -171,7 +170,7 @@ def build(image_name, config_file, dry_run, verbose):
         return
 
     # generate build files
-    local_config = LocalConfig(**LocalConfig.load(cfg_path), new=False)
+    local_config = LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CONFIG_PATH), new=False)
     local_config.build_context()
 
     # exit if dry run
@@ -180,7 +179,8 @@ def build(image_name, config_file, dry_run, verbose):
 
     # build image
     image, build_logs = local_config.build_image(image_tag=image_name)
-
+    local_config.latest_built_image = image.tags[0]
+    local_config.save()
     # TODO: use low-level api to stream logs realtime
     if verbose:
         for chunk in build_logs:
@@ -197,14 +197,87 @@ def build(image_name, config_file, dry_run, verbose):
 #     pass
 
 
-# @konan.command()
-# @click.pass_context
-# def publish():
-#     """
-#     tbd
-#     """
-#     pass
+# TODO: use sdk to fetch KCR creds
+@click.option('--image-tag', help="name of the generated image", required=False)
+@konan.command()
+def publish(image_tag):
+    """
+    Publish image built to konan container registry
+    """
+    if not global_config.access_token:
+        login()
 
+    # Getting KCR creds if not found
+    if not (global_config.token_name and global_config.token_password):
+        response = requests.get(url=f"{global_config.API_URL}/registry/token/",
+                                headers={'content-type': 'application/json',
+                                         'Authorization': f'Bearer {global_config.access_token}'})
+        if response.ok:
+            r_json = response.json()
+            global_config.token_name = r_json['token_name']
+            global_config.token_password = r_json['token_password']
+            global_config.save()
+        else:
+            # Refresh if access token is expired
+            if response.status_code == 401:
+                refresh_response = requests.get(url=f"{global_config.API_URL}/api/auth/token/refresh/",
+                                                headers={'content-type': 'application/json'})
+                if refresh_response.ok:
+                    global_config.access_token = refresh_response.json()['access']
+                    global_config.save()
+                    # Resend KCR creds request in case of access token is expired
+                    response = requests.get(url=f"{global_config.API_URL}/registry/token/",
+                                            headers={'content-type': 'application/json',
+                                                     'Authorization': f'Bearer {global_config.access_token}'})
+                    if response.ok:
+                        r_json = response.json()
+                        global_config.token_name = r_json['token_name']
+                        global_config.token_password = r_json['token_password']
+                        global_config.save()
+                else:
+                    click.echo("Looks like you're not logged in. Run `konan login` first then try again.")
+                    return
+
+    client = docker.from_env()
+    client.login(username=global_config.token_name, password=global_config.token_password,
+                 registry=global_config.KCR_REGISTRY)
+
+    if image_tag:
+        try:
+            image = client.images.get(image_tag)
+        except ImageNotFound:
+            click.echo(
+                "Incorrect image provided. Make sure you provide the same image name you used with `konan build` command.")
+            return
+    else:
+        if LocalConfig.exists(DEFAULT_LOCAL_CONFIG_PATH):
+            local_config = LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CONFIG_PATH), new=False)
+            if local_config.latest_built_image:
+                if click.confirm(f"Do you want to use the latest built image ({local_config.latest_built_image})?"):
+                    image = client.images.get(local_config.latest_built_image)
+                else:
+                    try:
+                        image = client.images.get(click.prompt("Image name"))
+                    except ImageNotFound:
+                        click.echo(
+                            "Incorrect image provided. Make sure you provide the same image name you used with `konan build` command.")
+                        return
+            else:
+                click.echo("Please run `konan build` first")
+                return
+        else:
+            click.echo(
+                "model.config.json does not exist in the current directory. Make sure you're running this command from the same directory you ran `konan init`.")
+            return
+
+    stripped_image_name = image.tags[0].split(':', 1)[0]
+    image.tag(repository=f"{global_config.KCR_REGISTRY}/{global_config.organization_id}:{stripped_image_name}")
+    result = client.images.push(f"{global_config.KCR_REGISTRY}/{global_config.organization_id}:{stripped_image_name}",
+                                stream=True, decode=True)
+    for chunk in result:
+        if 'progress' in chunk:
+            click.echo(chunk['progress'])
+    click.echo('Image pushed successfully')
 
 # @konan.command()
 # @click.pass_context

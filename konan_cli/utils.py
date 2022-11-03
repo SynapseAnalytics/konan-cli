@@ -6,6 +6,8 @@ from pathlib import Path
 
 import docker
 
+from .__init__ import __version__
+
 
 class GlobalConfig:
     API_URL = "https://api.konan.ai"
@@ -21,7 +23,7 @@ class GlobalConfig:
         self.token_name = kwargs[0].get('token_name')
         self.token_password = kwargs[0].get('token_password')
 
-        self._version = "v0.1.0"  # TODO: read from init file
+        self._version = __version__
 
         self._docker_path = "/var/lib/docker"
 

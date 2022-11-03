@@ -232,8 +232,7 @@ def publish(image_tag):
                         global_config.token_password = r_json['token_password']
                         global_config.save()
                 else:
-                    click.echo(
-                        "Error fetching token_name and token_password for konan container registry, please try to re-login")
+                    click.echo("Looks like you're not logged in. Run `konan login` first then try again.")
                     return
 
     client = docker.from_env()
@@ -244,26 +243,28 @@ def publish(image_tag):
         try:
             image = client.images.get(image_tag)
         except ImageNotFound:
-            click.echo("Incorrect image provided")
+            click.echo(
+                "Incorrect image provided. Make sure you provide the same image name you used with `konan build` command.")
             return
     else:
         if LocalConfig.exists(DEFAULT_LOCAL_CFG_PATH):
             local_config = LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CFG_PATH), new=False)
             if local_config.latest_built_image:
-                if click.confirm("Do you want to use the latest built image?"):
+                if click.confirm(f"Do you want to use the latest built image ({local_config.latest_built_image})?"):
                     image = client.images.get(local_config.latest_built_image)
                 else:
                     try:
-                        image = client.images.get(click.prompt("Image tag"))
+                        image = client.images.get(click.prompt("Image name"))
                     except ImageNotFound:
-                        click.echo("Incorrect image provided")
+                        click.echo(
+                            "Incorrect image provided. Make sure you provide the same image name you used with `konan build` command.")
                         return
             else:
                 click.echo("Please run 'konan build' first")
                 return
         else:
             click.echo(
-                "Error reading local configs, please navigate to project file and make sure you initialized your project using init command")
+                "model.config.json does not exist in the current directory. Make sure you're running this command from the same directory you ran 'konan init'.")
             return
 
     stripped_image_name = image.tags[0].split(':', 1)[0]
@@ -273,7 +274,7 @@ def publish(image_tag):
     for chunk in result:
         if 'progress' in chunk:
             click.echo(chunk['progress'])
-    click.echo('Image uploaded successfully')
+    click.echo('Image pushed successfully')
 
 # @konan.command()
 # @click.pass_context

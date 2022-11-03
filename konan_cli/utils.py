@@ -1,5 +1,3 @@
-import os
-import docker
 import json
 import os
 import shutil

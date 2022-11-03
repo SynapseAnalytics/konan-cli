@@ -61,10 +61,7 @@ def login(email, password, api_key=None):
         sdk.login(email=email, password=password, api_key=api_key)
         global_config.access_token = sdk.auth.user.access_token
         global_config.refresh_token = sdk.auth.user.refresh_token
-        # TODO: refactor
-        with open(global_config.config_path, 'w') as f:
-            f.write(json.dumps(global_config.__dict__))
-
+        
         click.echo("Logged in successfully.")
         if api_key:
             global_config.api_key = api_key

@@ -1,30 +1,35 @@
-import os
 import time
 
 import click
 import docker
 import json
-import sys
+import os
 import shutil
+import sys
 from pathlib import Path
 
 import requests
 from starlette.status import HTTP_200_OK
 
 from konan_cli.constants import DEFAULT_LOCAL_CFG_PATH
+from .__init__ import __version__
 
 
 class GlobalConfig:
+    API_URL = "https://api.konan.ai"
+    AUTH_URL = "https://auth.konan.ai"
+    KCR_REGISTRY = "konan.azurecr.io"
+
     def __init__(self, *kwargs):
 
-        self.api_key = None
-        self.access_token = None
-        self.refresh_token = None
+        self.api_key = kwargs[0].get('api_key')
+        self.access_token = kwargs[0].get('access_token')
+        self.refresh_token = kwargs[0].get('refresh_token')
+        self.organization_id = kwargs[0].get('organization_id')
+        self.token_name = kwargs[0].get('token_name')
+        self.token_password = kwargs[0].get('token_password')
 
-        self._api_url = "https://api.konana.ai"
-        self._auth_url = "https://auth.konan.ai"
-
-        self._version = "v0.1.0"  # TODO: read from init file
+        self._version = __version__
 
         self._docker_path = "/var/lib/docker"
 
@@ -95,14 +100,7 @@ class GlobalConfig:
 
 class LocalConfig:
     def __init__(
-        self,
-        language,
-        project_path,
-        global_config=None,
-        override=None,
-        base_image="python:3.10-slim-stretch",
-        new=True,
-        **kwargs
+        self, language, global_config=None, override=None, base_image="python:3.10-slim-stretch",new=True, **kwargs
     ):
         if global_config:  # TODO: pop from kwargs
             self._global_config = global_config.config_path
@@ -110,11 +108,11 @@ class LocalConfig:
         self.base_image = base_image
         self.config_path = f'{os.getcwd()}/'
         self.project_path = f'{self.config_path}/konan_model/'
-        self.build_path = f'{self.config_path}.konan_build/'
+        self.build_path = kwargs.get("build_path", f'{self.config_path}.konan_build/')
         self.latest_built_image = kwargs.get('latest_built_image', None)
 
         # TODO: make read only
-        self.templates_dir = f'{ Path(__file__).parent.absolute()}/.templates/{language}'
+        self.templates_dir = f'{Path(__file__).parent.absolute()}/.templates/{language}'
 
         if override:
             # TODO: implement
@@ -174,8 +172,7 @@ class LocalConfig:
         Build docker image
         """
         client = docker.from_env()
-        image, build_logs = client.images.build(path=self.build_path, tag=image_tag, nocache=True)
-
+        image, build_logs = client.images.build(path=self.build_path, tag=image_tag)
         return image, build_logs
 
     def stop_and_remove_container(self, container):

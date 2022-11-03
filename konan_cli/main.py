@@ -1,19 +1,19 @@
 import json
-import click
 import os
 
+import click
+import jwt
+from konan_sdk.sdk import KonanSDK
 from requests import HTTPError
 
-from konan_sdk.sdk import KonanSDK
 from konan_cli.utils import GlobalConfig, LocalConfig
-
-
-sdk = KonanSDK(verbose=False)
 
 if GlobalConfig.exists():
     global_config = GlobalConfig(GlobalConfig.load())
 else:
     global_config = GlobalConfig()
+
+sdk = KonanSDK(verbose=False, api_url=global_config.API_URL, auth_url=global_config.AUTH_URL)
 
 LOCAL_CONFIG_FILE_NAME = "model.config.json"
 DEFAULT_LOCAL_CONFIG_PATH = f'{os.getcwd()}/{LOCAL_CONFIG_FILE_NAME}'
@@ -30,23 +30,49 @@ def konan(ctx, version):
 
 
 @konan.command()
-@click.option('--email', prompt="Email", help="The email you registered with on Konan", required=True, type=click.STRING)
-@click.option('--password', prompt="Password", help="The password of your registered user on Konan", required=True, hide_input=True, type=click.STRING)
-def login(email, password):
+@click.option('--email', help="The email you registered with on Konan", required=False,
+              type=click.STRING)
+@click.option('--password', help="The password of your registered user on Konan", required=False,
+              hide_input=True, type=click.STRING)
+@click.option('--api-key', help="The api-key of your registered user on Konan", required=False,
+              type=click.STRING)
+def login(email, password, api_key=None):
     """
     Login with your registered user
     """
     try:
-        sdk.login(email=email, password=password)
+        if not api_key:
+            if email and not password:
+                click.echo("You cannot specify an email without a password")
+                password = click.prompt('Password', hide_input=True)
+            if password and not email:
+                click.echo("You cannot specify a password without an email")
+                email = click.prompt('Email')
+            if not email and not password:
+                if click.confirm('Do you want to login using api-key?',
+                                 default=True):  # TODO: add reference how to get api-key
+                    api_key = click.prompt('Api Key')
+                else:
+                    email = click.prompt('Email')
+                    password = click.prompt('Password', hide_input=True)
+
+        sdk.login(email=email, password=password, api_key=api_key)
         global_config.access_token = sdk.auth.user.access_token
         global_config.refresh_token = sdk.auth.user.refresh_token
-        # TODO: refactor
-        with open(global_config.config_path, 'w') as f:
-            f.write(json.dumps(global_config.__dict__))
 
         click.echo("Logged in successfully.")
+        if api_key:
+            global_config.api_key = api_key
+
+        # save organization uuid
+        decoded_jwt = jwt.decode(global_config.access_token, options={"verify_signature": False})
+        organization_id = decoded_jwt['organization_id']
+        global_config.organization_id = organization_id
+        global_config.save()
+
     except HTTPError:
-        click.echo("There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
+        click.echo(
+            "There seems to be a problem logging you in, please make sure you're using the correct registered credentials and try again")
 
 
 @konan.group()
@@ -71,8 +97,11 @@ def show(ctx):
 
 
 @config.command(no_args_is_help=True)
-@click.option('--docker-path', 'docker_path', help="path to docker installation, default set to /var/lib/docker", type=click.STRING)
-@click.option('--api-key', 'api_key', help="API key for the logged in user, can be obtained from https://auth.konan.ai/api/no/idea", type=click.STRING)
+@click.option('--docker-path', 'docker_path', help="path to docker installation, default set to /var/lib/docker",
+              type=click.STRING)
+@click.option('--api-key', 'api_key',
+              help="API key for the logged in user, can be obtained from https://auth.konan.ai/api/no/idea",
+              type=click.STRING)
 @click.pass_context
 def set(ctx, docker_path, api_key):
     """
@@ -87,9 +116,12 @@ def set(ctx, docker_path, api_key):
 
 
 @konan.command()
-@click.option('--language', help="the language the ML model is using, default is python", type=click.Choice(["python", "R"]), default="python", multiple=False)
-@click.option('--project-path', 'project_path', help="the base path in which konan's template files will be written, default is your current working directory")
-@click.option('--override', help="override existing files", is_flag=True, required=False)  # prompt="This will override all existing files, proceed?"
+@click.option('--language', help="the language the ML model is using, default is python",
+              type=click.Choice(["python", "R"]), default="python", multiple=False)
+@click.option('--project-path', 'project_path',
+              help="the base path in which konan's template files will be written, default is your current working directory")
+@click.option('--override', help="override existing files", is_flag=True,
+              required=False)  # prompt="This will override all existing files, proceed?"
 def init(language, project_path, override):
     """
     Generate the template scripts for deploying a model on Konan
@@ -111,8 +143,10 @@ def init(language, project_path, override):
 
 @konan.command()
 @click.option('--image-name', 'image_name', help="name of the generated image", required=True)
-@click.option('--config-file', 'config_file', help="path to config file generated from konan init command", default=DEFAULT_LOCAL_CONFIG_PATH)
-@click.option('--dry-run', 'dry_run', help="generate build files only without building the image", is_flag=True, required=False)
+@click.option('--config-file', 'config_file', help="path to config file generated from konan init command",
+              default=DEFAULT_LOCAL_CONFIG_PATH)
+@click.option('--dry-run', 'dry_run', help="generate build files only without building the image", is_flag=True,
+              required=False)
 @click.option('--verbose', help="increase the verbosity of messages", is_flag=True, required=False)
 def build(image_name, config_file, dry_run, verbose):
     """
@@ -131,7 +165,8 @@ def build(image_name, config_file, dry_run, verbose):
     cfg_exists = LocalConfig.exists(cfg_path)
 
     if not cfg_exists:
-        click.echo(f"Project files don't exist, did you run the konan init command first? Make sure you're running the command from the same directory containing {LOCAL_CONFIG_FILE_NAME} or provide it with the \
+        click.echo(
+            f"Project files don't exist, did you run the konan init command first? Make sure you're running the command from the same directory containing {LOCAL_CONFIG_FILE_NAME} or provide it with the \
                     --config-file argument.")
         return
 
@@ -152,7 +187,6 @@ def build(image_name, config_file, dry_run, verbose):
             if 'stream' in chunk:
                 for line in chunk['stream'].splitlines():
                     click.echo(line)
-
 
 # @konan.command()
 # @click.pass_context

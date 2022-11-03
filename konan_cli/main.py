@@ -61,7 +61,7 @@ def login(email, password, api_key=None):
         sdk.login(email=email, password=password, api_key=api_key)
         global_config.access_token = sdk.auth.user.access_token
         global_config.refresh_token = sdk.auth.user.refresh_token
-        
+
         click.echo("Logged in successfully.")
         if api_key:
             global_config.api_key = api_key
@@ -261,7 +261,7 @@ def publish(image_tag):
                 return
         else:
             click.echo(
-                "model.config.json does not exist in the current directory. Make sure you're running this command from the same directory you ran 'konan init'.")
+                "model.config.json does not exist in the current directory. Make sure you're running this command from the same directory you ran `konan init`.")
             return
 
     stripped_image_name = image.tags[0].split(':', 1)[0]

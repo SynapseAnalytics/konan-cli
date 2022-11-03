@@ -257,7 +257,7 @@ def publish(image_tag):
                             "Incorrect image provided. Make sure you provide the same image name you used with `konan build` command.")
                         return
             else:
-                click.echo("Please run 'konan build' first")
+                click.echo("Please run `konan build` first")
                 return
         else:
             click.echo(

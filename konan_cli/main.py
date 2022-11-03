@@ -167,14 +167,16 @@ def test():
 
     # receive request body
     click.echo("Prediction Body:")
-    prediction_body = click.edit()
+    help_body = """# Please insert prediction's request body as a json object.\n"""
+    prediction_body = click.edit(text=help_body)
+    prediction_body = prediction_body.replace(help_body, '')
     click.echo(prediction_body)
 
     test_successful, container = local_config.test_image(prediction_body)
     if test_successful:
         click.echo("Testing completed successfully.")
     else:
-        click.echo("Please fix and rebuild your model's container and then retest.")
+        click.echo("Please fix your model, run konan build and then run konan test.")
 
     click.echo("Removing created container..")
     local_config.stop_and_remove_container(container)
@@ -197,6 +199,3 @@ def test():
 #     tbd
 #     """
 #     pass
-
-if __name__ == "__main__":
-    konan()

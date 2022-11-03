@@ -187,6 +187,7 @@ class LocalConfig:
         client.containers.run(self.latest_built_image, ["python3", "--version"])
         click.echo("Container run successfully.")
         container = client.containers.run(self.latest_built_image, detach=True, ports={8000: 8000})
+        # await the container to run and setup the port
         time.sleep(1)
 
         try:
@@ -208,6 +209,8 @@ class LocalConfig:
                 click.echo("'/predict' endpoint tested successfully.")
             else:
                 click.echo(f"Testing '/predict' unsuccessful. Endpoint returned {response.status_code} status code.")
+                click.echo("Response body:")
+                click.echo(response.json())
                 return False, container
 
             # assert response is a valid json

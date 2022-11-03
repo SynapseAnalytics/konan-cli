@@ -16,7 +16,8 @@ else:
 sdk = KonanSDK(verbose=False, api_url=global_config.API_URL, auth_url=global_config.AUTH_URL)
 
 LOCAL_CONFIG_FILE_NAME = "model.config.json"
-DEFAULT_LOCAL_CFG_PATH = f'{os.getcwd()}/{LOCAL_CONFIG_FILE_NAME}'
+DEFAULT_LOCAL_CONFIG_PATH = f'{os.getcwd()}/{LOCAL_CONFIG_FILE_NAME}'
+DEFAULT_KONAN_MODEL_PATH = f'{os.getcwd()}/konan_model/'
 
 
 @click.group(invoke_without_command=True, no_args_is_help=True)
@@ -92,7 +93,7 @@ def show(ctx):
     with open(global_config.config_path, 'rb') as f:
         config = json.load(f)
         click.echo(global_config.config_path)
-        click.echo(config)
+        click.echo(json.dumps(config, indent=4))
 
 
 @config.command(no_args_is_help=True)
@@ -125,13 +126,16 @@ def init(language, project_path, override):
     """
     Generate the template scripts for deploying a model on Konan
     """
-    cfg_path = f'{project_path if project_path else DEFAULT_LOCAL_CFG_PATH}'
-    cfg_exists = LocalConfig.exists(cfg_path)
+    config_file_path = f'{project_path}/{LOCAL_CONFIG_FILE_NAME}' if project_path else DEFAULT_LOCAL_CONFIG_PATH
+    config_file_exists = LocalConfig.exists(config_file_path)
+    konan_model_dir_exits = os.path.isdir(DEFAULT_KONAN_MODEL_PATH)
 
     # check current working directory for existing local config file
-    if cfg_exists and not override:
+    if (config_file_exists or konan_model_dir_exits) and not override:
         click.echo(
-            "Files already generated. To override, run the init command with the --override flag or remove the konan_model directory and re-run command")
+            "Either config file or konan_model directory already generated. To override, run the init command with the " 
+            "--override flag or remove the existing files and re-run command."
+        )
     else:
         # create new config file
         LocalConfig(global_config=global_config, language=language, project_path=project_path, override=override)
@@ -140,7 +144,7 @@ def init(language, project_path, override):
 @konan.command()
 @click.option('--image-name', 'image_name', help="name of the generated image", required=True)
 @click.option('--config-file', 'config_file', help="path to config file generated from konan init command",
-              default=DEFAULT_LOCAL_CFG_PATH)
+              default=DEFAULT_LOCAL_CONFIG_PATH)
 @click.option('--dry-run', 'dry_run', help="generate build files only without building the image", is_flag=True,
               required=False)
 @click.option('--verbose', help="increase the verbosity of messages", is_flag=True, required=False)
@@ -157,7 +161,7 @@ def build(image_name, config_file, dry_run, verbose):
     # optional command point to config, expect config file in same directory of files
 
     # load local config
-    cfg_path = f'{config_file if config_file else DEFAULT_LOCAL_CFG_PATH}'
+    cfg_path = f'{config_file if config_file else DEFAULT_LOCAL_CONFIG_PATH}'
     cfg_exists = LocalConfig.exists(cfg_path)
 
     if not cfg_exists:

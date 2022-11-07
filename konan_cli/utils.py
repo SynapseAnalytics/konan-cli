@@ -1,11 +1,17 @@
+import time
+
+import click
+import docker
 import json
 import os
 import shutil
 import sys
 from pathlib import Path
 
-import docker
+import requests
+from starlette.status import HTTP_200_OK
 
+from konan_cli.constants import DEFAULT_LOCAL_CFG_PATH
 from .__init__ import __version__
 
 
@@ -70,7 +76,7 @@ class GlobalConfig:
 
     def save(self):
         with open(self.config_path, 'w') as f:
-            f.write(json.dumps(self.__dict__))
+            f.write(json.dumps(self.__dict__, indent=4))
 
     # first creation of config file
     def create_config_file(self):
@@ -93,8 +99,9 @@ class GlobalConfig:
 
 
 class LocalConfig:
-    def __init__(self, language, global_config=None, override=None, base_image="python:3.10-slim-stretch",
-                 new=True, **kwargs):
+    def __init__(
+        self, language, global_config=None, override=None, base_image="python:3.10-slim-stretch",new=True, **kwargs
+    ):
         if global_config:  # TODO: pop from kwargs
             self._global_config = global_config.config_path
         self.language = language
@@ -120,22 +127,22 @@ class LocalConfig:
             for template_file in files:
                 shutil.copy(src=f'{self.templates_dir}/{template_file}', dst=self.project_path)
 
-            # create artifacts directory
+            # create artifacts directory and local config file
             os.mkdir(f'{self.project_path}artifacts')
-            self.save()
+            self.save_config_to_file()
             # TODO: implement error handling
 
     @property
     def global_config(self):
-        return self._global_config
+        return self._global_config if self._global_config else None
 
     @staticmethod
-    def exists(cfg_path):
+    def config_file_exists(cfg_path):
         return os.path.exists(cfg_path)
 
-    def save(self):
+    def save_config_to_file(self):
         with open(self.config_path + 'model.config.json', 'w') as f:
-            f.write(json.dumps(self.__dict__))
+            f.write(json.dumps(self.__dict__, indent=4))
 
     # TODO: refactor out
     @staticmethod
@@ -168,5 +175,65 @@ class LocalConfig:
         image, build_logs = client.images.build(path=self.build_path, tag=image_tag)
         return image, build_logs
 
-    def test_image(self):
-        pass
+    def stop_and_remove_container(self, container):
+        container.stop()
+        container.remove()
+
+    def test_image(self, prediction_body):
+        client = docker.from_env()
+        client.containers.run(self.latest_built_image, ["python3", "--version"])
+        click.echo("Container run successfully.")
+        container = client.containers.run(self.latest_built_image, detach=True, ports={8000: 8000})
+        # await the container to run and setup the port
+        time.sleep(1)
+
+        try:
+            # ping container
+            requests.get("http://0.0.0.0:8000/")
+            click.echo("Pinged container successfully.")
+
+            # ping healthz endpoint
+            response = requests.get("http://0.0.0.0:8000/healthz")
+            if response.status_code == HTTP_200_OK:
+                click.echo("'/healthz' endpoint tested successfully.")
+            else:
+                click.echo(f"Testing '/healthz' unsuccessful. Endpoint returned {response.status_code} status code.")
+                return False, container
+
+            # request predict endpoint
+            response = requests.post("http://0.0.0.0:8000/predict", data=prediction_body)
+            if response.status_code == HTTP_200_OK:
+                click.echo("'/predict' endpoint tested successfully.")
+            else:
+                click.echo(f"Testing '/predict' unsuccessful. Endpoint returned {response.status_code} status code.")
+                click.echo("Response body:")
+                click.echo(response.json())
+                return False, container
+
+            # assert response is a valid json
+            try:
+                response.json()
+            except requests.JSONDecodeError:
+                click.echo("WARNING: Returned output by '/predict' endpoint is not a valid json!")
+
+            # request docs endpoint
+            response = requests.get("http://0.0.0.0:8000/docs")
+            if response.status_code == HTTP_200_OK:
+                click.echo("'/docs' endpoint tested successfully.")
+            else:
+                click.echo(
+                    f"Testing '/docs' unsuccessful. Endpoint returned {response.status_code} status code.")
+                return False, container
+
+        except Exception as e:
+            click.echo("The following exception occurred while trying to contact the model container:")
+            click.echo(e)
+
+        return True, container
+
+    @staticmethod
+    def get_local_config():
+        config_file_exists = LocalConfig.config_file_exists(DEFAULT_LOCAL_CFG_PATH)
+        if config_file_exists:
+            return LocalConfig(**LocalConfig.load(DEFAULT_LOCAL_CFG_PATH), new=False)
+        return None
